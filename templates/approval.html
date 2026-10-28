@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PoultryVantage - Device Access Approval & Monitor</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #0284c7;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+    }
+    .container {
+      max-width: 1250px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: #e0f2fe;
+      color: var(--primary);
+    }
+
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .table-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .table-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    th, td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .badge-approved { background: #dcfce7; color: var(--success); }
+    .badge-pending { background: #fef3c7; color: var(--warning); }
+    .badge-revoked { background: #fee2e2; color: var(--danger); }
+    .badge-banned { background: #450a0a; color: #fca5a5; }
+
+    .pulse-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      margin-right: 6px;
+      box-shadow: 0 0 6px rgba(22, 163, 74, 0.6);
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .btn {
+      padding: 5px 10px;
+      border-radius: 4px;
+      border: 1px solid transparent;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+    .btn-approve { background: var(--success); color: white; }
+    .btn-approve:hover { background: #15803d; }
+    .btn-revoke { background: #ffffff; border-color: #fca5a5; color: var(--danger); }
+    .btn-revoke:hover { background: #fee2e2; }
+    .btn-ban { background: #1e293b; color: #f8fafc; }
+    .btn-ban:hover { background: #0f172a; }
+    .time-duration { font-family: monospace; font-size: 0.85rem; font-weight: 700; color: var(--primary); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        🛡️ POULTRYVANTAGE ACCESS MANAGER
+      </div>
+      <div class="header-info">
+        <span id="phClock" style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">--:--:-- --</span>
+        <span class="status-badge">GATEWAY HOST MASTER</span>
+      </div>
+    </header>
+
+    <!-- Stats Cards (Matching index.html style) -->
+    <div class="grid-stats">
+      <div class="card">
+        <div class="card-title">Active Devices Online</div>
+        <div class="card-value" id="statOnline" style="color: var(--success);">0</div>
+        <small style="color: var(--text-muted);">Broadcasting heartbeat</small>
+      </div>
+      <div class="card">
+        <div class="card-title">Pending Approvals</div>
+        <div class="card-value" id="statPending" style="color: var(--warning);">0</div>
+        <small style="color: var(--text-muted);">Awaiting administrator review</small>
+      </div>
+      <div class="card">
+        <div class="card-title">Total Registered Devices</div>
+        <div class="card-value" id="statTotal">0</div>
+        <small style="color: var(--text-muted);">External tunnel attempts</small>
+      </div>
+    </div>
+
+    <!-- Active Device Management Table -->
+    <div class="table-card">
+      <div class="table-header">
+        <div style="font-weight: 700; font-size: 0.85rem; color: var(--text-muted); text-transform: uppercase;">DEVICE ACCESS & PRESENCE LOGS</div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Live updates every 2 seconds</small>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>PAIRING ID</th>
+              <th>CLIENT IP</th>
+              <th>PRESENCE</th>
+              <th>STATUS</th>
+              <th>LOGIN TIME (PH)</th>
+              <th>TIME IN SYSTEM</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody id="requestTableBody">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">Loading device records...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = "";
+
+    // Philippine Standard Time Clock (hh:mm:ss AM/PM)
+    function updatePhClock() {
+      const now = new Date();
+      const options = {
+        timeZone: "Asia/Manila",
+        hour: "numeric",
+        minute: "numeric",
+        second: "numeric",
+        hour12: true
+      };
+      document.getElementById("phClock").textContent = "PST: " + now.toLocaleTimeString("en-US", options);
+    }
+    setInterval(updatePhClock, 1000);
+    updatePhClock();
+
+    // Format ISO string to Philippine 12-Hour Time (Month Day, hh:mm:ss AM/PM)
+    function formatToPhTime(isoString) {
+      if (!isoString) return "—";
+      try {
+        const d = new Date(isoString);
+        return d.toLocaleString("en-US", {
+          timeZone: "Asia/Manila",
+          month: "short",
+          day: "numeric",
+          hour: "numeric",
+          minute: "numeric",
+          second: "numeric",
+          hour12: true
+        });
+      } catch (e) {
+        return isoString;
+      }
+    }
+
+    async function loadRequests() {
+      try {
+        const res = await fetch(`${API_BASE}/api/admin/browser_requests`);
+        if (!res.ok) return;
+        const data = await res.json();
+
+        let onlineCount = 0;
+        let pendingCount = 0;
+
+        const tbody = document.getElementById("requestTableBody");
+        if (!data || data.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--text-muted); padding: 16px;">No device requests recorded yet.</td></tr>`;
+          document.getElementById("statOnline").textContent = "0";
+          document.getElementById("statPending").textContent = "0";
+          document.getElementById("statTotal").textContent = "0";
+          return;
+        }
+
+        tbody.innerHTML = data.map(r => {
+          if (r.status === "approved" && r.is_online) onlineCount++;
+          if (r.status === "pending") pendingCount++;
+
+          const isApproved = r.status === "approved";
+          const isPending = r.status === "pending";
+          const isBanned = r.status === "banned";
+          const isRevoked = r.status === "revoked";
+
+          let presenceHtml = `<span style="color:var(--text-muted);">Offline</span>`;
+          if (isApproved && r.is_online) {
+            presenceHtml = `<span><span class="pulse-dot"></span>Online</span>`;
+          } else if (isPending) {
+            presenceHtml = `<span style="color:var(--warning); font-weight:600;">Waiting</span>`;
+          } else if (isBanned) {
+            presenceHtml = `<span style="color:var(--danger); font-weight:700;">Banned</span>`;
+          }
+
+          const loginTime = formatToPhTime(r.approved_at || r.created_at);
+
+          let actionButtons = "";
+          if (isPending) {
+            actionButtons = `
+              <div class="btn-group">
+                <button class="btn btn-approve" onclick="grantAccess('${r.session_token}')">Approve</button>
+                <button class="btn btn-ban" onclick="banIp('${r.client_ip}')">Ban IP</button>
+              </div>`;
+          } else if (isApproved) {
+            actionButtons = `
+              <div class="btn-group">
+                <button class="btn btn-revoke" onclick="revokeAccess('${r.session_token}')">Revoke</button>
+                <button class="btn btn-ban" onclick="banIp('${r.client_ip}')">Ban IP</button>
+              </div>`;
+          } else if (isBanned) {
+            actionButtons = `<button class="btn btn-approve" onclick="unbanIp('${r.client_ip}')">Unban IP</button>`;
+          } else {
+            actionButtons = `<button class="btn btn-ban" onclick="banIp('${r.client_ip}')">Ban IP</button>`;
+          }
+
+          return `
+            <tr>
+              <td><code>${r.session_token}</code></td>
+              <td><strong>${r.client_ip}</strong></td>
+              <td>${presenceHtml}</td>
+              <td><span class="badge badge-${r.status}">${r.status}</span></td>
+              <td style="color: var(--text-muted);">${loginTime}</td>
+              <td><span class="time-duration">${r.live_duration || '—'}</span></td>
+              <td>${actionButtons}</td>
+            </tr>
+          `;
+        }).join("");
+
+        document.getElementById("statOnline").textContent = onlineCount;
+        document.getElementById("statPending").textContent = pendingCount;
+        document.getElementById("statTotal").textContent = data.length;
+
+      } catch (err) {
+        console.error("Error refreshing requests:", err);
+      }
+    }
+
+    async function grantAccess(token) {
+      await fetch(`${API_BASE}/api/admin/grant_browser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: token })
+      });
+      loadRequests();
+    }
+
+    async function revokeAccess(token) {
+      await fetch(`${API_BASE}/api/admin/revoke_browser`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_token: token })
+      });
+      loadRequests();
+    }
+
+    async function banIp(ip) {
+      if (!confirm(`Are you sure you want to permanently ban IP: ${ip}?`)) return;
+      await fetch(`${API_BASE}/api/admin/ban_ip`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip_address: ip })
+      });
+      loadRequests();
+    }
+
+    async function unbanIp(ip) {
+      await fetch(`${API_BASE}/api/admin/unban_ip`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ip_address: ip })
+      });
+      loadRequests();
+    }
+
+    loadRequests();
+    setInterval(loadRequests, 2000);
+  </script>
+</body>
+</html>

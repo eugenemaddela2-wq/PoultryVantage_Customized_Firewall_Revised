@@ -1,0 +1,11 @@
+DEMO MODE (local/private test network only)
+
+1. Create .env from .env.example and replace all secret placeholders.
+2. To test cloud forwarding locally, set CLOUD_ENDPOINT=http://127.0.0.1:5001/cloud/ingest.
+3. Terminal 1: python mock_cloud.py
+4. Terminal 2: python app.py
+5. Terminal 3: python test_sender.py
+
+To demonstrate buffering: stop mock_cloud.py, send a sample again, restart mock_cloud.py,
+then run POST /api/retry from the gateway host or wait for the retry worker.
+Check /api/status and the local dashboard. Do not expose the demo to the public internet.

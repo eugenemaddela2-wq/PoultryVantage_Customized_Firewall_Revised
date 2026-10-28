@@ -1,0 +1,12 @@
+# Secrets and local runtime data
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+data/
+backups/
+logs/
+*.db
+lan_test_results_*.json
+lan_test_results_*.csv

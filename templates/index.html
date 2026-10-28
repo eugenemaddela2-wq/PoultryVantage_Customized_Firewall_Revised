@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PoultryVantage - IoT Gateway Dashboard</title>
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --primary: #0284c7;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 16px;
+    }
+    .container {
+      max-width: 1250px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+      gap: 10px;
+    }
+    .brand {
+      font-size: 1.25rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-summary {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #0284c7;
+      color: #ffffff;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: background-color 0.2s ease;
+    }
+    .btn-summary:hover {
+      background: #0369a1;
+    }
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-online { background: #dcfce7; color: var(--success); }
+    .status-offline { background: #fee2e2; color: var(--danger); }
+
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .card-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    @media (max-width: 900px) {
+      .charts-grid { grid-template-columns: 1fr; }
+    }
+
+    .range-selector {
+      display: flex;
+      gap: 6px;
+    }
+    .range-btn {
+      padding: 4px 10px;
+      border: 1px solid var(--border);
+      background: #ffffff;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .range-btn.selected {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary);
+    }
+
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      background: #f8fafc;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        🛡️ POULTRYVANTAGE ANALYTICS
+      </div>
+      <div class="header-actions">
+        <!-- Download Summary Button -->
+        <a href="/report/summary" target="_blank" class="btn-summary">
+          📄 Download Summary
+        </a>
+        <span id="lastTelemetryUpdated" style="font-size: 0.8rem; color: var(--text-muted);">Connecting...</span>
+        <span id="systemStatusBadge" class="status-badge status-offline">CHECKING...</span>
+      </div>
+    </header>
+
+    <!-- Live Climate & Temperature Cards -->
+    <div class="grid-stats">
+      <div class="card">
+        <div class="card-title">Live Temperature</div>
+        <div class="card-value" id="cardAvgTemp">-- °C</div>
+        <small style="color: var(--text-muted);">Safe: 18°C – 24°C</small>
+      </div>
+      <div class="card">
+        <div class="card-title">Live Humidity</div>
+        <div class="card-value" style="color: var(--primary);" id="cardAvgHum">-- %</div>
+        <small style="color: var(--text-muted);">Optimal: 50% – 70%</small>
+      </div>
+      <div class="card">
+        <div class="card-title">Ammonia Level (NH3)</div>
+        <div class="card-value" style="color: var(--warning);" id="cardAvgNh3">-- ppm</div>
+        <small style="color: var(--text-muted);">Threshold: &lt; 20 ppm</small>
+      </div>
+      <div class="card">
+        <div class="card-title">Forwarding Buffer</div>
+        <div class="card-value" style="color: var(--success);" id="statBuffered">0 Pending</div>
+        <small style="color: var(--text-muted);">Local SQLite storage</small>
+      </div>
+    </div>
+
+    <!-- Analytics Charts Row -->
+    <div class="charts-grid">
+      <!-- 1. Real-time Line Trend Chart -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <div>
+            <h3 style="margin: 0; font-size: 1rem;">📈 Environmental Telemetry Trends</h3>
+            <small style="color: var(--text-muted);">Temperature, Humidity & Ammonia timeline</small>
+          </div>
+          <div class="range-selector">
+            <button class="range-btn selected" onclick="setTimeframe('daily', this)">Daily</button>
+            <button class="range-btn" onclick="setTimeframe('weekly', this)">Weekly</button>
+            <button class="range-btn" onclick="setTimeframe('monthly', this)">Monthly</button>
+          </div>
+        </div>
+        <div style="position: relative; height: 260px;">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+
+      <!-- 2. Comfort Index Distribution Pie Chart -->
+      <div class="card">
+        <h3 style="margin: 0; font-size: 1rem;">🥧 Poultry Comfort Index</h3>
+        <small style="color: var(--text-muted);">Environmental Health Quality Distribution</small>
+        <div style="position: relative; height: 260px; margin-top: 8px;">
+          <canvas id="comfortPieChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Live Telemetry Transmission Logs -->
+    <div class="card">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <div class="card-title" style="margin: 0;">LATEST TRANSMISSION LOGS</div>
+        <small style="color: var(--text-muted); font-size: 0.75rem;">Auto-refreshing feed</small>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>SOURCE SENSOR</th>
+              <th>TRANSMISSION STATUS</th>
+              <th>LATENCY</th>
+              <th>TIMESTAMP</th>
+            </tr>
+          </thead>
+          <tbody id="telemetryBody">
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 14px;">Loading live feed...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Use relative path if accessing directly via Flask (:5000) or via public tunnel/domain (ngrok)
+    const isLocalDevPort = window.location.port === "5500" || window.location.port === "3000";
+    const API_BASE = isLocalDevPort
+      ? `${window.location.protocol}//${window.location.hostname}:5000`
+      : "";
+      
+    let activeRange = "daily";
+    let trendChartInstance = null;
+    let pieChartInstance = null;
+    let lastKnownRecordId = null;
+
+    function updateBadge(isOnline) {
+      const badge = document.getElementById("systemStatusBadge");
+      if (isOnline) {
+        badge.textContent = "SYSTEM ONLINE";
+        badge.className = "status-badge status-online";
+      } else {
+        badge.textContent = "SYSTEM OFFLINE";
+        badge.className = "status-badge status-offline";
+      }
+    }
+
+    function initCharts() {
+      const ctxLine = document.getElementById('trendChart').getContext('2d');
+      trendChartInstance = new Chart(ctxLine, {
+        type: 'line',
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: 'Temp (°C)',
+              borderColor: '#ef4444',
+              backgroundColor: 'rgba(239, 68, 68, 0.08)',
+              data: [],
+              tension: 0.25,
+              fill: true,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Humidity (%)',
+              borderColor: '#0284c7',
+              backgroundColor: 'transparent',
+              data: [],
+              tension: 0.25,
+              yAxisID: 'y'
+            },
+            {
+              label: 'Ammonia (ppm)',
+              borderColor: '#f59e0b',
+              backgroundColor: 'transparent',
+              data: [],
+              tension: 0.25,
+              borderDash: [4, 4],
+              yAxisID: 'y1'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            y: {
+              type: 'linear',
+              position: 'left',
+              title: { display: true, text: 'Temp / Humidity' }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              title: { display: true, text: 'NH3 (ppm)' }
+            }
+          }
+        }
+      });
+
+      const ctxPie = document.getElementById('comfortPieChart').getContext('2d');
+      pieChartInstance = new Chart(ctxPie, {
+        type: 'doughnut',
+        data: {
+          labels: ['Comfortable', 'Heat Stress Risk', 'High Ammonia Risk'],
+          datasets: [{
+            data: [0, 0, 0],
+            backgroundColor: ['#22c55e', '#ef4444', '#f59e0b'],
+            borderWidth: 2
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: { legend: { position: 'bottom' } }
+        }
+      });
+    }
+
+    function setTimeframe(range, btn) {
+      activeRange = range;
+      document.querySelectorAll('.range-btn').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      fetchAnalyticsData();
+    }
+
+    // --- REFRESH CYCLE 1: TELEMETRY & CHARTS (2.5s) ---
+    async function fetchAnalyticsData() {
+      try {
+        const res = await fetch(`${API_BASE}/api/analytics?range=${activeRange}`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+
+          if (data.summary) {
+            document.getElementById("cardAvgTemp").textContent = `${data.summary.avg_temp} °C`;
+            document.getElementById("cardAvgHum").textContent = `${data.summary.avg_hum} %`;
+            document.getElementById("cardAvgNh3").textContent = `${data.summary.avg_nh3} ppm`;
+            document.getElementById("lastTelemetryUpdated").textContent = "Live: " + new Date().toLocaleTimeString();
+          }
+
+          const labels = data.time_series.map(pt => pt.time);
+          const temps = data.time_series.map(pt => pt.temperature);
+          const hums = data.time_series.map(pt => pt.humidity);
+          const nh3s = data.time_series.map(pt => pt.ammonia);
+
+          trendChartInstance.data.labels = labels;
+          trendChartInstance.data.datasets[0].data = temps;
+          trendChartInstance.data.datasets[1].data = hums;
+          trendChartInstance.data.datasets[2].data = nh3s;
+          trendChartInstance.update('none');
+
+          const dist = data.distribution;
+          pieChartInstance.data.datasets[0].data = [
+            dist["Comfortable"] || 0,
+            dist["Heat Stress Risk"] || 0,
+            dist["High Ammonia Risk"] || 0
+          ];
+          pieChartInstance.update('none');
+          updateBadge(true);
+        }
+      } catch (err) {}
+    }
+
+    async function runLiveAnalyticsRefresh() {
+      await fetchAnalyticsData();
+      setTimeout(runLiveAnalyticsRefresh, 2500);
+    }
+
+    // --- REFRESH CYCLE 2: LOGS (4s) ---
+    async function runLogsRefresh() {
+      try {
+        const res = await fetch(`${API_BASE}/api/records?limit=10`, { credentials: "include" });
+        if (res.ok) {
+          const records = await res.json();
+          const tbody = document.getElementById("telemetryBody");
+
+          if (!records || !records.length) {
+            tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 14px;">No records received yet.</td></tr>`;
+          } else if (lastKnownRecordId !== records[0].id) {
+            lastKnownRecordId = records[0].id;
+            tbody.innerHTML = "";
+            records.forEach(r => {
+              const statusColor = r.status === "forwarded" ? "var(--success)" : "var(--warning)";
+              const latency = r.latency_ms ? `${parseFloat(r.latency_ms).toFixed(1)} ms` : "—";
+              tbody.insertAdjacentHTML("beforeend", `
+                <tr>
+                  <td><code>#${r.id}</code></td>
+                  <td><strong>${r.device_id}</strong></td>
+                  <td style="color: ${statusColor}; font-weight: 600; text-transform: uppercase;">${r.status}</td>
+                  <td>${latency}</td>
+                  <td style="color: var(--text-muted);">${r.created_at || r.received_at}</td>
+                </tr>
+              `);
+            });
+          }
+        }
+      } catch (err) {
+      } finally {
+        setTimeout(runLogsRefresh, 4000);
+      }
+    }
+
+    // --- REFRESH CYCLE 3: STATUS (6s) ---
+    async function runSystemStatusRefresh() {
+      try {
+        const res = await fetch(`${API_BASE}/api/status`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.records) {
+            document.getElementById("statBuffered").textContent = `${data.records.pending || 0} Pending`;
+          }
+          updateBadge(true);
+        } else {
+          updateBadge(false);
+        }
+      } catch (e) {
+        updateBadge(false);
+      } finally {
+        setTimeout(runSystemStatusRefresh, 6000);
+      }
+    }
+
+    // --- REFRESH CYCLE 4: REVOCATION CHECK (10s) ---
+    async function runRevocationCheck() {
+      try {
+        const res = await fetch(`${API_BASE}/api/pairing/status`, { credentials: "include" });
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.status === "revoked") {
+            window.location.href = "/";
+          }
+        }
+      } catch (e) {
+      } finally {
+        setTimeout(runRevocationCheck, 10000);
+      }
+    }
+
+    // Initialize UI and run separated tasks
+    initCharts();
+    runLiveAnalyticsRefresh();
+    runLogsRefresh();
+    runSystemStatusRefresh();
+    runRevocationCheck();
+  </script>
+</body>
+</html>
